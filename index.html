@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooter 3D - Enhanced Graphics</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Canvas onde o jogo será renderizado -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Interface do Usuário -->
+    <div id="ui">
+        <div id="score">Pontos: 0</div>
+        <div id="healthContainer">
+            <span class="healthLabel">Vida:</span>
+            <div id="healthIcons">
+                <!-- Ícones serão adicionados/removidos via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de Loading -->
+    <div id="loadingScreen">
+        <div id="loadingText">Carregando Recursos...</div>
+        <div id="progressBarContainer">
+            <div id="progressBar"></div>
+        </div>
+    </div>
+
+    <!-- Tela de Game Over -->
+    <div id="gameOverScreen">
+        <h1>FIM DE JOGO</h1>
+        <p>Sua pontuação: <span id="finalScore">0</span></p>
+        <button id="restartButton">Jogar Novamente</button>
+    </div>
+
+    <!-- Three.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Three.js Addons (Loaders, Effects) - Certifique-se que as versões são compatíveis (r128) -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <!-- >>> CORREÇÃO: Adicionar ShaderPass.js <<< -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <!-- <<< FIM DA CORREÇÃO >>> -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+
+    <!-- Importa o script do jogo -->
+    <script src="script.js"></script>
+</body>
+</html>
