@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let gameOver = false;
     let gameRunning = false;
     let composer;
-    // let skyboxMesh; // Skybox será definido como background da cena
+    let skyboxMesh; // Usando a Mesh para o Skybox novamente
     let stars;
     const starCount = 5000;
     const starMovementSpeed = 0.1;
@@ -62,7 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // === Funções Principais ===
     function init() {
         setupLoadingManager();
-        scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000); renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(window.devicePixelRatio); renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+        scene = new THREE.Scene();
+        // Aumentar o far plane da câmera para garantir que o skybox (raio 1000) esteja dentro
+        camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 3000); // Far plane aumentado para 3000
+        renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true }); renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(window.devicePixelRatio); renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
 
         const ambientLight = new THREE.AmbientLight(0x6080B0, 0.7); // Luz ambiente azulada
         scene.add(ambientLight);
@@ -74,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadResources();
         createStarfield();
         window.addEventListener('keydown', onKeyDown); window.addEventListener('keyup', onKeyUp); window.addEventListener('resize', onWindowResize); restartButton.addEventListener('click', restartGame);
-        setupPostProcessing();
+        // setupPostProcessing(); // Temporariamente desabilitado para teste do skybox
         unlockAudio();
      }
     function setupLoadingManager() { loadingManager.onStart = (url, itemsLoaded, itemsTotal) => { loadingText.textContent = `Carregando: ${url.split('/').pop()} (${itemsLoaded}/${itemsTotal})`; progressBar.style.width = `${(itemsLoaded / itemsTotal) * 100}%`; loadingScreen.style.display = 'flex'; }; loadingManager.onLoad = onLoadingComplete; loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => { loadingText.textContent = `Carregando: ${url.split('/').pop()} (${itemsLoaded}/${itemsTotal})`; progressBar.style.width = `${(itemsLoaded / itemsTotal) * 100}%`; }; loadingManager.onError = (url) => { console.error('Erro ao carregar:', url); loadingText.textContent = `Erro ao carregar: ${url.split('/').pop()}. Verifique console.`; progressBar.style.backgroundColor = 'red'; }; }
@@ -85,19 +88,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const urls = [ skyboxPath + 'px.png', skyboxPath + 'nx.png', skyboxPath + 'py.png', skyboxPath + 'ny.png', skyboxPath + 'pz.png', skyboxPath + 'nz.png' ];
         cubeTextureLoader.load(urls, (cubeTexture) => {
             cubeTexture.encoding = THREE.sRGBEncoding;
-            scene.background = cubeTexture; // Define o background da cena
+            // scene.background = cubeTexture; // Revertido: Não usar scene.background
             scene.environment = cubeTexture; // Mantém para reflexos nos objetos PBR
-            console.log("Skybox definido como background da cena. Verifique se as texturas carregaram (Console/Network tab).");
-            // Removemos a criação da Mesh do skybox
-            // const skyboxGeometry = new THREE.SphereGeometry(1000, 60, 40);
-            // const skyboxMaterial = new THREE.MeshBasicMaterial({
-            //     envMap: cubeTexture,
-            //     side: THREE.BackSide
-            // });
-            // skyboxMesh = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
-            // skyboxMesh.renderOrder = -1;
-            // scene.add(skyboxMesh);
-        }, undefined, (error) => { console.error("!!! ERRO AO CARREGAR TEXTURAS DO SKYBOX:", error); });
+
+            // Recriar a Mesh do skybox
+            const skyboxGeometry = new THREE.SphereGeometry(1000, 60, 40); // Esfera grande
+            // Usar MeshBasicMaterial com envMap e BackSide
+            const skyboxMaterial = new THREE.MeshBasicMaterial({
+                map: null, // Garantir que não haja textura base
+                envMap: cubeTexture, // Mapeia a textura no interior
+                side: THREE.BackSide, // Renderiza o lado de dentro
+                depthWrite: false, // Importante para evitar problemas de profundidade com objetos distantes
+                transparent: false, // Garantir que não seja transparente
+                opacity: 1.0 // Garantir opacidade total
+            });
+            skyboxMesh = new THREE.Mesh(skyboxGeometry, skyboxMaterial);
+            skyboxMesh.renderOrder = -1; // Garante que renderize primeiro (fundo)
+            scene.add(skyboxMesh);
+            console.log("Skybox Mesh adicionado à cena (revertido). Verifique se as texturas carregaram (Console/Network tab).");
+        }, undefined, (error) => {
+             console.error("!!! ERRO CRÍTICO AO CARREGAR TEXTURAS DO SKYBOX:", error);
+             // Adicionar feedback visual de erro se o skybox falhar
+             const errorMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.BackSide });
+             const errorGeometry = new THREE.SphereGeometry(999, 32, 16);
+             const errorMesh = new THREE.Mesh(errorGeometry, errorMaterial);
+             errorMesh.renderOrder = -2;
+             scene.add(errorMesh);
+             console.log("Skybox de ERRO (vermelho) adicionado.");
+        });
 
         // Carregar Nave
         gltfLoader.load('player_ship.glb', (gltf) => {
@@ -144,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const starVertices = []; const starGeometry = new THREE.BufferGeometry();
         for (let i = 0; i < starCount; i++) { const x = THREE.MathUtils.randFloatSpread(2000); const y = THREE.MathUtils.randFloatSpread(1000); const z = THREE.MathUtils.randFloat(-1000, 100); starVertices.push(x, y, z); }
         starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true, transparent: true, opacity: 0.7 });
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.5, sizeAttenuation: true, transparent: true, opacity: 0.2 });
         stars = new THREE.Points(starGeometry, starMaterial);
         stars.renderOrder = 0; // Renderiza depois do skybox, antes dos objetos principais
         scene.add(stars);
@@ -185,10 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Música
         if (isAudioUnlocked && backgroundMusicBuffer && !backgroundMusicSource) { playBackgroundMusic(); }
     }
-    // Condição removida: && skyboxMesh
-    function resetGame() { if (playerShip && window.enemyModelTemplate) { startGameSystems(); } else { setTimeout(resetGame, 500); } }
-    // Condição removida: && skyboxMesh
-    function restartGame() { if (playerShip && window.enemyModelTemplate) { startGameSystems(); } else { console.error("Tentativa de reiniciar antes do carregamento completo."); } }
+    // Condição restaurada: && skyboxMesh
+    function resetGame() { if (playerShip && window.enemyModelTemplate && skyboxMesh) { startGameSystems(); } else { setTimeout(resetGame, 500); } }
+    // Condição restaurada: && skyboxMesh
+    function restartGame() { if (playerShip && window.enemyModelTemplate && skyboxMesh) { startGameSystems(); } else { console.error("Tentativa de reiniciar antes do carregamento completo."); } }
 
     // === Funções de Áudio ===
     function playSoundShoot() { if (!audioCtx || !isAudioUnlocked) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = 'triangle'; o.frequency.setValueAtTime(1200, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.1); g.gain.setValueAtTime(0.3, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1); o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime + 0.1); }
@@ -257,10 +275,10 @@ document.addEventListener('DOMContentLoaded', () => {
         animationFrameId = requestAnimationFrame(animate);
         const deltaTime = clock.getDelta();
 
-        // Rotação do skyboxMesh removida, pois não existe mais
-        // if (skyboxMesh) {
-        //     skyboxMesh.rotation.y += skyboxRotationSpeed * deltaTime;
-        // }
+        // Rotação do skyboxMesh restaurada
+        if (skyboxMesh) {
+            skyboxMesh.rotation.y += skyboxRotationSpeed * deltaTime;
+        }
 
         // Inclinação Suave da Nave
         if (playerShip) {
